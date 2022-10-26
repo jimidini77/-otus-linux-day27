@@ -1,0 +1,9 @@
+[routers]
+inetRouter    ansible_host=192.168.56.101 ansible_port=22 ansible_private_key_file=.vagrant/machines/inetRouter/virtualbox/private_key
+centralRouter ansible_host=192.168.56.102 ansible_port=22 ansible_private_key_file=.vagrant/machines/centralRouter/virtualbox/private_key
+Office1Router ansible_host=192.168.56.104 ansible_port=22 ansible_private_key_file=.vagrant/machines/Office1Router/virtualbox/private_key
+Office2Router ansible_host=192.168.56.106 ansible_port=22 ansible_private_key_file=.vagrant/machines/Office2Router/virtualbox/private_key
+[servers]
+centralServer ansible_host=192.168.56.103 ansible_port=22 ansible_private_key_file=.vagrant/machines/centralServer/virtualbox/private_key
+Office1Server ansible_host=192.168.56.105 ansible_port=22 ansible_private_key_file=.vagrant/machines/Office1Server/virtualbox/private_key
+Office2Server ansible_host=192.168.56.107 ansible_port=22 ansible_private_key_file=.vagrant/machines/Office2Server/virtualbox/private_key

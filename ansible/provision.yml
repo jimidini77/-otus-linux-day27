@@ -1,0 +1,133 @@
+---
+- name: Setup routers
+  hosts: routers
+  become: true
+  tasks:
+    - name: Persistent forwarding enable
+      lineinfile:
+        line: "net.ipv4.ip_forward = 1"
+        path: /etc/sysctl.conf
+
+    - name: Setup forward packages across routers
+      sysctl:
+        name: net.ipv4.conf.all.forwarding
+        value: '1'
+        state: present
+
+    - name: SW CONFIG | Install iptables
+      yum:
+        name:
+          - iptables
+          - iptables-services
+        state: present
+
+    - name: start and enable iptables service
+      service:
+        name: iptables
+        state: restarted
+        enabled: true
+
+    - name: NAT settings
+      iptables:
+        table: nat
+        chain: POSTROUTING
+        destination: "! 192.168.0.0/16"
+        out_interface: eth0
+        jump: MASQUERADE
+      when: (ansible_hostname == "inetRouter")
+
+    - name: iptables icmp forwarding allow 
+      iptables:
+        state: absent
+        jump: REJECT
+        chain: FORWARD
+        reject_with: icmp-host-prohibited
+
+    - name: save iptables settings
+      shell: 'iptables-save > /etc/sysconfig/iptables'
+
+    - name: inetRouter static routes set
+      lineinfile:
+        line: '{{ item }}'
+        path: /etc/sysconfig/network-scripts/route-eth1
+        create: yes
+      loop:
+        - "192.168.255.4/30 via 192.168.255.2"
+        - "192.168.255.8/30 via 192.168.255.2"
+        - "192.168.0.0/24 via 192.168.255.2"
+        - "192.168.1.0/24 via 192.168.255.2"
+        - "192.168.2.0/24 via 192.168.255.2"
+      when: (ansible_hostname == "inetRouter")
+
+    - name: centralRouter static routes set
+      lineinfile:
+        line: '{{ item.line }}'
+        path: '{{ item.file }}'
+        create: yes
+      with_items: 
+        - { line: "192.168.2.0/24 via 192.168.255.10", file: "/etc/sysconfig/network-scripts/route-eth5" }
+        - { line: "192.168.1.0/24 via 192.168.255.6", file: "/etc/sysconfig/network-scripts/route-eth6" }
+        - { line: "DEFROUTE=no", file: "/etc/sysconfig/network-scripts/ifcfg-eth0" }
+        - { line: "GATEWAY=192.168.255.1", file: "/etc/sysconfig/network-scripts/ifcfg-eth1"}
+      when: (ansible_hostname == "centralRouter")
+
+    - name: Office1Router static routes set
+      lineinfile:
+        line: '{{ item.line }}'
+        path: '{{ item.file }}'
+        create: yes
+      with_items: 
+        - { line: "DEFROUTE=no", file: "/etc/sysconfig/network-scripts/ifcfg-eth0" }
+        - { line: "GATEWAY=192.168.255.9", file: "/etc/sysconfig/network-scripts/ifcfg-eth1"}
+      when: (ansible_hostname == "Office1Router")
+
+    - name: Office2Router static routes set
+      lineinfile:
+        line: '{{ item.line }}'
+        path: '{{ item.file }}'
+        create: yes
+      with_items: 
+        - { line: "DEFROUTE=no", file: "/etc/sysconfig/network-scripts/ifcfg-eth0" }
+        - { line: "GATEWAY=192.168.255.5", file: "/etc/sysconfig/network-scripts/ifcfg-eth1"}
+      when: (ansible_hostname == "Office2Router")
+
+- name: Setup servers
+  hosts: servers
+  become: true
+  tasks:
+    - name: centralServer static routes set
+      lineinfile:
+        line: '{{ item.line }}'
+        path: '{{ item.file }}'
+        create: yes
+      with_items: 
+        - { line: "DEFROUTE=no", file: "/etc/sysconfig/network-scripts/ifcfg-eth0" }
+        - { line: "GATEWAY=192.168.0.1", file: "/etc/sysconfig/network-scripts/ifcfg-eth1"}
+      when: (ansible_hostname == "centralServer")
+
+    - name: Office1Server static routes set
+      lineinfile:
+        line: '{{ item.line }}'
+        path: '{{ item.file }}'
+        create: yes
+      with_items: 
+        - { line: "DEFROUTE=no", file: "/etc/sysconfig/network-scripts/ifcfg-eth0" }
+        - { line: "GATEWAY=192.168.2.1", file: "/etc/sysconfig/network-scripts/ifcfg-eth1"}
+      when: (ansible_hostname == "Office1Server")
+
+    - name: Office2Server static routes set
+      lineinfile:
+        line: '{{ item.line }}'
+        path: '{{ item.file }}'
+        create: yes
+      with_items: 
+        - { line: "DEFROUTE=no", file: "/etc/sysconfig/network-scripts/ifcfg-eth0" }
+        - { line: "GATEWAY=192.168.1.1", file: "/etc/sysconfig/network-scripts/ifcfg-eth1"}
+      when: (ansible_hostname == "Office2Server")
+
+- name: Setup all
+  hosts: all
+  become: true
+  tasks:
+    - name: Reboot all machines
+      reboot:
